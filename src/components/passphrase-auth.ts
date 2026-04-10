@@ -6,6 +6,10 @@
 
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('PassphraseAuth');
+const AUTH_DISABLED = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
 /**
  * Passphrase authentication component for Rosie
@@ -231,6 +235,14 @@ export class PassphraseAuthElement extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    logger.debug('Component connected');
+    
+    if (AUTH_DISABLED) {
+      logger.info('Auth is disabled via VITE_DISABLE_AUTH');
+      this._authenticate();
+      return;
+    }
+    
     this._checkIfSetupNeeded();
   }
 
@@ -238,6 +250,7 @@ export class PassphraseAuthElement extends LitElement {
   private _checkIfSetupNeeded() {
     const storedHash = localStorage.getItem(PassphraseAuthElement.PASSPHRASE_KEY);
     this._isSetupMode = !storedHash;
+    logger.debug('Setup mode:', this._isSetupMode);
   }
 
   /** Hash a passphrase using SHA-256 */
