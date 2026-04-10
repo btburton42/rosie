@@ -43,3 +43,6 @@ yarn-error.log*
 
 # Vite
 .vite/
+
+# Agent session notes
+AGENTS.md

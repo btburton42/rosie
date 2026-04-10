@@ -1,10 +1,23 @@
 /**
  * Chat input component using Lit
+ * Rosie-themed input with retro-futuristic styling
  * @module components/chat-input
  */
 
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
+
+/**
+ * Props for the ChatInput component
+ */
+export interface ChatInputProps {
+  /** Whether the input is disabled */
+  disabled?: boolean;
+  /** Placeholder text */
+  placeholder?: string;
+  /** Callback when message is submitted */
+  onSubmit?: (message: string) => void;
+}
 
 /**
  * Component for chat message input
@@ -19,8 +32,9 @@ export class ChatInputElement extends LitElement {
     :host {
       display: block;
       padding: 1rem;
-      background: var(--surface-color, #252538);
-      border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      background: var(--surface-color, rgba(255, 255, 255, 0.05));
+      border-top: 1px solid var(--border-color, rgba(255, 107, 53, 0.2));
+      backdrop-filter: blur(10px);
     }
 
     .input-container {
@@ -41,28 +55,30 @@ export class ChatInputElement extends LitElement {
       min-height: 3rem;
       max-height: 200px;
       padding: 0.75rem 1rem;
-      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-      border-radius: 1rem;
-      background: var(--bg-color, #1a1a2e);
-      color: var(--text-color, #e2e2e2);
+      border: 1px solid var(--border-color, rgba(255, 107, 53, 0.2));
+      border-radius: 1.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-color, #ffecd1);
       font-size: 1rem;
       font-family: inherit;
       resize: none;
       outline: none;
-      transition: border-color 0.2s ease;
+      transition: all 0.2s ease;
       box-sizing: border-box;
     }
 
     textarea:focus {
-      border-color: var(--accent-color, #6366f1);
+      border-color: var(--rosie-primary, #ff6b35);
+      box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     textarea::placeholder {
-      color: var(--text-muted, #6b7280);
+      color: var(--text-muted, #a0a0b0);
     }
 
     textarea:disabled {
-      opacity: 0.6;
+      opacity: 0.5;
       cursor: not-allowed;
     }
 
@@ -71,18 +87,20 @@ export class ChatInputElement extends LitElement {
       height: 3rem;
       border: none;
       border-radius: 50%;
-      background: var(--accent-color, #6366f1);
+      background: linear-gradient(135deg, var(--rosie-primary, #ff6b35) 0%, var(--rosie-secondary, #f7931e) 100%);
       color: white;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.2s ease, transform 0.1s ease;
+      transition: all 0.2s ease;
       flex-shrink: 0;
+      box-shadow: var(--shadow-sm, 0 2px 8px rgba(255, 107, 53, 0.2));
     }
 
     button:hover:not(:disabled) {
-      opacity: 0.9;
+      transform: scale(1.05);
+      box-shadow: var(--shadow-md, 0 4px 16px rgba(255, 107, 53, 0.3));
     }
 
     button:active:not(:disabled) {
@@ -92,6 +110,7 @@ export class ChatInputElement extends LitElement {
     button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      background: var(--text-muted, #a0a0b0);
     }
 
     button svg {
@@ -101,9 +120,10 @@ export class ChatInputElement extends LitElement {
 
     .hint {
       font-size: 0.75rem;
-      color: var(--text-muted, #6b7280);
+      color: var(--text-muted, #a0a0b0);
       text-align: center;
       margin-top: 0.5rem;
+      opacity: 0.7;
     }
   `;
 
@@ -111,11 +131,13 @@ export class ChatInputElement extends LitElement {
   @property({ type: Boolean })
   disabled = false;
 
-  /** Current input value */
+  /** Placeholder text for the input */
+  @property({ type: String })
+  placeholder = 'Type your message...';
+
   @state()
   private _value = '';
 
-  /** Reference to the textarea element */
   @query('textarea')
   private textarea!: HTMLTextAreaElement;
 
@@ -132,6 +154,12 @@ export class ChatInputElement extends LitElement {
   /** Clear the input */
   clear() {
     this._value = '';
+    this.adjustTextareaHeight();
+  }
+
+  /** Set input value programmatically */
+  setValue(value: string) {
+    this._value = value;
     this.adjustTextareaHeight();
   }
 
@@ -153,7 +181,6 @@ export class ChatInputElement extends LitElement {
 
   /** Handle keydown events */
   private handleKeydown(e: KeyboardEvent) {
-    // Submit on Enter (but not Shift+Enter)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       this.submit();
@@ -175,7 +202,6 @@ export class ChatInputElement extends LitElement {
     this.adjustTextareaHeight();
   }
 
-  /** Handle focus event */
   private handleFocus() {
     this.dispatchEvent(new CustomEvent('input-focus', {
       bubbles: true,
@@ -183,7 +209,6 @@ export class ChatInputElement extends LitElement {
     }));
   }
 
-  /** Handle blur event */
   private handleBlur() {
     this.dispatchEvent(new CustomEvent('input-blur', {
       bubbles: true,
@@ -197,7 +222,7 @@ export class ChatInputElement extends LitElement {
         <div class="textarea-wrapper">
           <textarea
             .value=${this._value}
-            placeholder="Type your message..."
+            placeholder=${this.placeholder}
             ?disabled=${this.disabled}
             @input=${this.handleInput}
             @keydown=${this.handleKeydown}

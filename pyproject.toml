@@ -1,7 +1,7 @@
 [project]
-name = "synthchat"
+name = "rosie"
 version = "0.1.0"
-description = "Progressive Web App chat interface for synthetic.new models"
+description = "Rosie - Your Personal AI Assistant PWA"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
