@@ -219,6 +219,24 @@ export class PinAuthElement extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._checkIfSetupNeeded();
+    // Add keyboard support
+    window.addEventListener('keydown', this._handleKeyboard);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('keydown', this._handleKeyboard);
+  }
+
+  /** Handle keyboard input */
+  private _handleKeyboard = (e: KeyboardEvent) => {
+    if (e.key >= '0' && e.key <= '9') {
+      this._handleKey(e.key);
+    } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      this._handleKey('clear');
+    } else if (e.key === 'Enter' && this._pin.length === PinAuthElement.PIN_LENGTH) {
+      this._processPin();
+    }
   }
 
   /** Check if PIN needs to be set up */
@@ -237,7 +255,10 @@ export class PinAuthElement extends LitElement {
   }
 
   /** Handle key press */
-  private async _handleKey(key: string) {
+  private async _handleKey(key: string, event?: Event) {
+    // Prevent default to avoid any unwanted behavior
+    event?.preventDefault();
+    
     if (this._showError) {
       this._showError = false;
     }
@@ -252,7 +273,8 @@ export class PinAuthElement extends LitElement {
       this._pin += key;
 
       if (this._pin.length === PinAuthElement.PIN_LENGTH) {
-        await this._processPin();
+        // Small delay to show the last dot before processing
+        setTimeout(() => this._processPin(), 100);
       }
     }
   }
@@ -333,17 +355,17 @@ export class PinAuthElement extends LitElement {
 
         <div class="keypad">
           ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => html`
-            <button class="key" @click=${() => this._handleKey(num.toString())} aria-label="${num}">
+            <button class="key" @click=${(e: Event) => this._handleKey(num.toString(), e)} aria-label="${num}">
               ${num}
             </button>
           `)}
-          <button class="key clear" @click=${() => this._handleKey('clear')} aria-label="Clear">
+          <button class="key clear" @click=${(e: Event) => this._handleKey('clear', e)} aria-label="Clear">
             ⌫
           </button>
-          <button class="key" @click=${() => this._handleKey('0')} aria-label="0">
+          <button class="key" @click=${(e: Event) => this._handleKey('0', e)} aria-label="0">
             0
           </button>
-          <button class="key" @click=${() => this._handleKey('clear')} aria-label="Clear all">
+          <button class="key" @click=${(e: Event) => this._handleKey('clear', e)} aria-label="Clear all">
             ✕
           </button>
         </div>
