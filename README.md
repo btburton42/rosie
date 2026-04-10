@@ -181,6 +181,8 @@ rosie/
 
 MIT — Built with 💙 for The Jetsons fans everywhere.
 
+Auto-deployed to Vercel via GitHub Actions.
+
 ## 🤝 Credits
 
 - Inspired by Rosie the Robot from [The Jetsons](https://en.wikipedia.org/wiki/The_Jetsons)
