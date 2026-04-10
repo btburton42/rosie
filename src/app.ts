@@ -7,9 +7,13 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { storage } from '@services/storage.js';
 import { rosieApi } from '@services/rosie-api.js';
+import { createLogger } from './utils/logger.js';
 import '@components/chat-container.js';
 import '@components/settings-panel.js';
 import '@components/passphrase-auth.js';
+
+const logger = createLogger('App');
+const AUTH_DISABLED = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
 /**
  * Rosie - Your Personal AI Assistant
@@ -149,6 +153,13 @@ export class RosieApp extends LitElement {
 
   constructor() {
     super();
+    
+    // Check if auth is disabled via env var
+    if (AUTH_DISABLED) {
+      logger.info('Auth disabled via VITE_DISABLE_AUTH - auto-authenticating');
+      this._isAuthenticated = true;
+    }
+    
     this.initializeApp();
   }
 
