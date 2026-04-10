@@ -60,5 +60,9 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     target: 'es2022'
-  }
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
 });
