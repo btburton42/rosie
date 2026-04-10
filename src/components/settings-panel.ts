@@ -6,7 +6,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { AppSettings } from '@app-types/chat.js';
-import { PinAuthElement } from './pin-auth.js';
+import { PassphraseAuthElement } from './passphrase-auth.js';
 
 /**
  * Settings panel component for API token and preferences
@@ -231,12 +231,11 @@ export class SettingsPanelElement extends LitElement {
     }
   }
 
-  /** Reset PIN */
-  private resetPin() {
-    if (confirm('This will clear the current PIN and require setup again. You\'ll need to re-enter the app. Continue?')) {
-      PinAuthElement.resetPin();
-      this._status = { type: 'success', message: 'PIN reset. Reloading...' };
-      setTimeout(() => window.location.reload(), 1500);
+  /** Reset passphrase */
+  private resetPassphrase() {
+    if (confirm('Are you sure? This will require setting up a new passphrase.')) {
+      PassphraseAuthElement.resetPassphrase();
+      alert('Passphrase reset. Please refresh the page.');
     }
   }
 
@@ -319,7 +318,7 @@ export class SettingsPanelElement extends LitElement {
 
         <div class="section">
           <h2>Security</h2>
-          <button class="btn btn-secondary" @click=${this.resetPin}>Reset PIN</button>
+          <button class="btn btn-secondary" @click=${this.resetPassphrase}>Reset Passphrase</button>
           <div class="help-text">
             Clear the current PIN and require setup again. You'll need to re-enter the app.
           </div>

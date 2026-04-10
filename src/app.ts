@@ -9,7 +9,7 @@ import { storage } from '@services/storage.js';
 import { rosieApi } from '@services/rosie-api.js';
 import '@components/chat-container.js';
 import '@components/settings-panel.js';
-import '@components/pin-auth.js';
+import '@components/passphrase-auth.js';
 
 /**
  * Rosie - Your Personal AI Assistant
@@ -175,7 +175,7 @@ export class RosieApp extends LitElement {
     if (!this._isAuthenticated) {
       return html`
         <div class="app">
-          <pin-auth @authenticated=${this.handleAuthenticated}></pin-auth>
+          <passphrase-auth @authenticated=${this.handleAuthenticated}></passphrase-auth>
         </div>
       `;
     }
