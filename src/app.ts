@@ -157,12 +157,7 @@ export class RosieApp extends LitElement {
     const settings = storage.getSettings();
     
     // Set theme - default to Rosie theme
-    if (settings.theme === 'system') {
-      // Rosie doesn't use system theme - always use Rosie theme
-      this.setAttribute('theme', 'rosie');
-    } else {
-      this.setAttribute('theme', settings.theme || 'rosie');
-    }
+    this.setAttribute('theme', settings.theme || 'rosie');
     
     // Set font size
     this.setAttribute('font-size', settings.fontSize);

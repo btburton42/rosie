@@ -5,7 +5,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { AppSettings } from '@types/chat.js';
+import type { AppSettings } from '@app-types/chat.js';
 import { PinAuthElement } from './pin-auth.js';
 
 /**
@@ -189,7 +189,7 @@ export class SettingsPanelElement extends LitElement {
   private _localSettings: AppSettings = {
     selectedModelId: '',
     apiToken: null,
-    theme: 'dark',
+    theme: 'rosie',
     fontSize: 'medium',
   };
 

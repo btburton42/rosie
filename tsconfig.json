@@ -20,7 +20,7 @@
       "@/*": ["src/*"],
       "@components/*": ["src/components/*"],
       "@services/*": ["src/services/*"],
-      "@types/*": ["src/types/*"]
+      "@app-types/*": ["src/types/*"]
     }
   },
   "include": ["src/**/*.ts"],

@@ -5,7 +5,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { AVAILABLE_MODELS, type ModelConfig } from '@types/chat.js';
+import { AVAILABLE_MODELS, type ModelConfig } from '@app-types/chat.js';
 
 /**
  * Component for selecting the AI model

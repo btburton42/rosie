@@ -3,7 +3,7 @@
  * @module services/synth-api
  */
 
-import type { ChatMessage, ChatRequest, StreamChunk } from '@types/chat.js';
+import type { ChatMessage, ChatRequest, StreamChunk } from '@app-types/chat.js';
 
 const API_BASE_URL = 'https://api.synthetic.new/v1';
 

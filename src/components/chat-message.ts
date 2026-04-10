@@ -5,7 +5,7 @@
 
 import { LitElement, html, css, type PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { ChatMessage } from '@types/chat.js';
+import type { ChatMessage } from '@app-types/chat.js';
 
 /**
  * Component for rendering individual chat messages

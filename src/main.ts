@@ -4,7 +4,7 @@
  * @module main
  */
 
-import '@app.js';
+import '@/app.js';
 
 // Welcome to Rosie! 🤖
 console.log('%c🤖 Rosie', 'font-size: 24px; font-weight: bold; color: #ff6b35;');

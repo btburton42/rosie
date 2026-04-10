@@ -8,7 +8,7 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
       '@components': resolve(__dirname, './src/components'),
       '@services': resolve(__dirname, './src/services'),
-      '@types': resolve(__dirname, './src/types'),
+      '@app-types': resolve(__dirname, './src/types'),
     },
   },
   plugins: [

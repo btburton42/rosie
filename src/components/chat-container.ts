@@ -6,8 +6,8 @@
 
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { ChatMessage, Conversation, AppSettings } from '@types/chat.js';
-import { AVAILABLE_MODELS } from '@types/chat.js';
+import type { ChatMessage, Conversation, AppSettings } from '@app-types/chat.js';
+import { AVAILABLE_MODELS } from '@app-types/chat.js';
 import { rosieApi } from '@services/rosie-api.js';
 import { storage } from '@services/storage.js';
 import './chat-message.js';
@@ -171,8 +171,6 @@ export class ChatContainerElement extends LitElement {
   @state()
   private _settings: AppSettings = storage.getSettings();
 
-  private _currentStreamingId: string | null = null;
-
   connectedCallback() {
     super.connectedCallback();
     this.loadConversation();
@@ -236,7 +234,6 @@ export class ChatContainerElement extends LitElement {
 
     this._isStreaming = true;
     const streamingId = crypto.randomUUID();
-    this._currentStreamingId = streamingId;
 
     const assistantMessage: ChatMessage = {
       id: streamingId,
@@ -274,14 +271,12 @@ export class ChatContainerElement extends LitElement {
             : m
         );
         this._isStreaming = false;
-        this._currentStreamingId = null;
         this.saveConversation();
       },
       (error) => {
         this._messages = this._messages.filter(m => m.id !== streamingId);
         this.addErrorMessage(error.message);
         this._isStreaming = false;
-        this._currentStreamingId = null;
       }
     );
   }

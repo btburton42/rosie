@@ -3,8 +3,8 @@
  * @module services/storage
  */
 
-import type { Conversation, AppSettings } from '@types/chat.js';
-import { AVAILABLE_MODELS } from '@types/chat.js';
+import type { Conversation, AppSettings } from '@app-types/chat.js';
+import { AVAILABLE_MODELS } from '@app-types/chat.js';
 
 const STORAGE_KEYS = {
   conversations: 'rosie_conversations',
