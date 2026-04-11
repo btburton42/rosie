@@ -1,11 +1,11 @@
 /**
  * Rosie Entry Point
- * Your personal AI assistant awaits!
+ * Your AI interface awaits!
  * @module main
  */
 
 import '@/app.js';
 
-// Welcome to Rosie! 🤖
+// Welcome! 🤖
 console.log('%c🤖 Rosie', 'font-size: 24px; font-weight: bold; color: #ff6b35;');
-console.log('%cYour personal AI assistant is ready!', 'font-size: 14px; color: #a0a0b0;');
+console.log('%cYour AI interface is ready!', 'font-size: 14px; color: #a0a0b0;');

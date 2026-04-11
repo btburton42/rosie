@@ -1,5 +1,5 @@
 /**
- * Rosie Passphrase Authentication
+ * Passphrase Authentication
  * Simple text-based authentication with retro-futuristic styling
  * @module components/passphrase-auth
  */
@@ -12,7 +12,7 @@ const logger = createLogger('PassphraseAuth');
 const AUTH_DISABLED = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
 /**
- * Passphrase authentication component for Rosie
+ * Passphrase authentication component
  * @element passphrase-auth
  * @fires {CustomEvent<void>} authenticated - When correct passphrase is entered
  */
@@ -213,7 +213,7 @@ export class PassphraseAuthElement extends LitElement {
     .strength-bar.strong { background: var(--success-color, #6bcb77); }
   `;
 
-  private static readonly PASSPHRASE_KEY = 'rosie_passphrase_hash';
+  private static readonly PASSPHRASE_KEY = 'robot_passphrase_hash';
 
   @state()
   private _passphrase = '';
@@ -352,8 +352,8 @@ export class PassphraseAuthElement extends LitElement {
 
   render() {
     const strength = this._getStrength();
-    const currentInput = this._isSetupMode && this._isConfirming 
-      ? this._confirmPassphrase 
+    const currentInput = this._isSetupMode && this._isConfirming
+      ? this._confirmPassphrase
       : this._passphrase;
 
     return html`
@@ -361,7 +361,7 @@ export class PassphraseAuthElement extends LitElement {
         <div class="rosie-avatar">🤖</div>
         <h1>${this._isSetupMode ? 'Hello!' : 'Welcome back!'}</h1>
         <p class="tagline">
-          ${this._isSetupMode 
+          ${this._isSetupMode
             ? (this._isConfirming ? 'Please confirm your passphrase' : "I'm Rosie, your AI assistant")
             : 'Enter your passphrase to continue'
           }
@@ -409,7 +409,7 @@ export class PassphraseAuthElement extends LitElement {
           ` : ''}
 
           <button type="submit" class="submit" ?disabled=${currentInput.length < (this._isSetupMode ? 4 : 1)}>
-            ${this._isSetupMode && !this._isConfirming ? 'Continue' : 'Unlock Rosie'}
+            ${this._isSetupMode && !this._isConfirming ? 'Continue' : 'Unlock'}
           </button>
         </form>
 

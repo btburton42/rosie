@@ -1,21 +1,23 @@
 /**
- * Rosie Chat Container
- * Main chat interface with retro-futuristic styling
+ * Chat Container
+ * Main chat interface with conversation sidebar
  * @module components/chat-container
  */
 
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { ChatMessage, Conversation, AppSettings } from '@app-types/chat.js';
-import { AVAILABLE_MODELS } from '@app-types/chat.js';
-import { rosieApi } from '@services/rosie-api.js';
+import type { ChatMessage, Conversation, AppSettings, ModelEndpoint } from '@app-types/chat.js';
+import { aiApi } from '@services/ai-api.js';
 import { storage } from '@services/storage.js';
+import { createLogger } from '../utils/logger.js';
 import './chat-message.js';
 import './chat-input.js';
-import './model-selector.js';
+import './endpoint-selector.js';
+
+const logger = createLogger('ChatContainer');
 
 /**
- * Rosie's chat interface
+ * The main chat interface with conversation history
  * @element chat-container
  */
 @customElement('chat-container')
@@ -23,11 +25,144 @@ export class ChatContainerElement extends LitElement {
   static styles = css`
     :host {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       height: 100vh;
       height: 100dvh;
-      background: var(--bg-gradient, linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%));
+      background: var(--bg-gradient, linear-gradient(135deg, #1e2a3a 0%, #0f1a2e 100%));
       font-family: 'Nunito', sans-serif;
+    }
+
+    .sidebar {
+      width: 280px;
+      background: var(--surface-color, #2d3a4a);
+      border-right: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    }
+
+    .new-chat-btn {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.2));
+      border-radius: 0.5rem;
+      background: var(--rosie-primary, #c41e3a);
+      color: white;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .new-chat-btn:hover {
+      background: #a31830;
+      transform: translateY(-1px);
+    }
+
+    .sidebar-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted, #8a9ab0);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 1rem 1rem 0.5rem;
+    }
+
+    .conversation-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .conversation-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .conversation-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .conversation-list::-webkit-scrollbar-thumb {
+      background: var(--border-color, rgba(255, 255, 255, 0.2));
+      border-radius: 2px;
+    }
+
+    .conversation-item {
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      margin-bottom: 0.25rem;
+      transition: background-color 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .conversation-item:hover {
+      background: var(--surface-hover, #3a4a5a);
+    }
+
+    .conversation-item.active {
+      background: rgba(196, 30, 58, 0.15);
+      border-color: var(--rosie-primary, #c41e3a);
+    }
+
+    .conversation-title {
+      font-size: 0.875rem;
+      color: var(--text-color, #f5f5f5);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.25rem;
+    }
+
+    .conversation-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted, #8a9ab0);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .conversation-delete {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: var(--text-muted, #8a9ab0);
+      cursor: pointer;
+      padding: 0.125rem;
+      font-size: 1rem;
+      transition: opacity 0.2s ease;
+    }
+
+    .conversation-item:hover .conversation-delete {
+      opacity: 1;
+    }
+
+    .conversation-delete:hover {
+      color: var(--error-color, #ef4444);
+    }
+
+    .no-conversations {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--text-muted, #8a9ab0);
+      font-size: 0.875rem;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
     }
 
     .header {
@@ -35,7 +170,7 @@ export class ChatContainerElement extends LitElement {
       align-items: center;
       justify-content: space-between;
       padding: 0.75rem 1rem;
-      border-bottom: 1px solid var(--border-color, rgba(255, 107, 53, 0.2));
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
       background: var(--surface-color, rgba(255, 255, 255, 0.05));
       backdrop-filter: blur(10px);
       flex-shrink: 0;
@@ -47,23 +182,40 @@ export class ChatContainerElement extends LitElement {
       gap: 0.75rem;
     }
 
+    .menu-btn {
+      width: 2.5rem;
+      height: 2.5rem;
+      border: none;
+      background: transparent;
+      color: var(--text-color, #e2e2e2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.5rem;
+      transition: background-color 0.2s ease;
+    }
+
+    .menu-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
     .rosie-logo {
       width: 40px;
       height: 40px;
-      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ffd93d 100%);
+      background: linear-gradient(135deg, var(--rosie-primary, #c41e3a) 0%, var(--rosie-secondary, #1e3a5f) 100%);
       border-radius: 50% 50% 45% 45%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.5rem;
-      box-shadow: var(--shadow-sm, 0 2px 8px rgba(255, 107, 53, 0.2));
+      box-shadow: var(--shadow-sm, 0 2px 8px rgba(196, 30, 58, 0.2));
     }
 
     .rosie-name {
       font-size: 1.25rem;
       font-weight: 700;
-      color: var(--rosie-primary, #ff6b35);
-      text-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+      color: var(--rosie-primary, #c41e3a);
     }
 
     .header-right {
@@ -113,14 +265,14 @@ export class ChatContainerElement extends LitElement {
 
     .welcome {
       text-align: center;
-      color: var(--text-muted, #6b7280);
+      color: var(--text-muted, #8a9ab0);
       margin: auto;
       padding: 2rem;
     }
 
     .welcome h2 {
       margin: 0 0 0.5rem 0;
-      color: var(--text-color, #e2e2e2);
+      color: var(--text-color, #f5f5f5);
     }
 
     .welcome p {
@@ -134,7 +286,7 @@ export class ChatContainerElement extends LitElement {
       font-size: 0.75rem;
       padding: 0.25rem 0.5rem;
       border-radius: 1rem;
-      background: var(--surface-color, #252538);
+      background: var(--surface-color, #2d3a4a);
     }
 
     .api-status.authenticated {
@@ -151,6 +303,216 @@ export class ChatContainerElement extends LitElement {
       border-radius: 50%;
       background: currentColor;
     }
+
+    .endpoint-display {
+      font-size: 0.75rem;
+      color: var(--text-muted, #8a9ab0);
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Mobile sidebar toggle */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+        transform: translateX(-100%);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 99;
+      }
+
+      .sidebar-backdrop.open {
+        display: block;
+      }
+    }
+
+    @media (min-width: 769px) {
+      .menu-btn {
+        display: none;
+      }
+    }
+
+    /* Import Context Modal */
+    .import-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      padding: 1rem;
+    }
+
+    .import-modal-content {
+      background: var(--surface-color, #2d3a4a);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+      border-radius: 0.75rem;
+      width: 100%;
+      max-width: 500px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .import-modal-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .import-modal-header h3 {
+      margin: 0;
+      color: var(--text-color, #f5f5f5);
+    }
+
+    .import-modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted, #8a9ab0);
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.25rem;
+    }
+
+    .import-modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-color, #f5f5f5);
+    }
+
+    .import-modal-body {
+      padding: 1rem;
+      overflow-y: auto;
+    }
+
+    .import-field {
+      margin-bottom: 1rem;
+    }
+
+    .import-field label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-color, #f5f5f5);
+    }
+
+    .import-field select,
+    .import-field input[type="range"] {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+      border-radius: 0.5rem;
+      background: var(--bg-color, #1e2a3a);
+      color: var(--text-color, #f5f5f5);
+      font-size: 0.875rem;
+    }
+
+    .import-field select option {
+      background: var(--surface-color, #2d3a4a);
+      color: var(--text-color, #f5f5f5);
+      padding: 0.5rem;
+    }
+
+    .import-range-value {
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--rosie-primary, #c41e3a);
+      margin-top: 0.25rem;
+    }
+
+    .import-modal-footer {
+      padding: 1rem;
+      border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .import-btn {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .import-btn-primary {
+      background: var(--rosie-primary, #c41e3a);
+      color: white;
+    }
+
+    .import-btn-primary:hover {
+      background: #a31830;
+    }
+
+    .import-btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .import-btn-secondary {
+      background: transparent;
+      color: var(--text-color, #f5f5f5);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    }
+
+    .import-btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .import-context-btn {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border: 1px dashed var(--border-color, rgba(255, 255, 255, 0.3));
+      border-radius: 0.5rem;
+      background: transparent;
+      color: var(--text-muted, #8a9ab0);
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .import-context-btn:hover {
+      border-color: var(--rosie-primary, #c41e3a);
+      color: var(--rosie-primary, #c41e3a);
+    }
+
+    .help-text {
+      font-size: 0.75rem;
+      color: var(--text-muted, #8a9ab0);
+      margin-top: 0.5rem;
+      line-height: 1.4;
+    }
   `;
 
   @property({ type: String })
@@ -163,7 +525,7 @@ export class ChatContainerElement extends LitElement {
   private _isStreaming = false;
 
   @state()
-  private _modelId = AVAILABLE_MODELS[0]?.id ?? '';
+  private _endpointId = '';
 
   @state()
   private _showSettings = false;
@@ -171,22 +533,146 @@ export class ChatContainerElement extends LitElement {
   @state()
   private _settings: AppSettings = storage.getSettings();
 
+  @state()
+  private _currentEndpoint: ModelEndpoint | null = null;
+
+  @state()
+  private _conversations: Conversation[] = [];
+
+  @state()
+  private _sidebarOpen = false;
+
+  @state()
+  private _showImportModal = false;
+
+  @state()
+  private _importConversationId: string | null = null;
+
+  @state()
+  private _importMessageCount = 10;
+
   connectedCallback() {
     super.connectedCallback();
     this.loadConversation();
-    rosieApi.setToken(this._settings.apiToken);
+    this._updateEndpoint();
+    this._loadConversations();
+  }
+
+  /** Load all conversations for the sidebar */
+  private _loadConversations() {
+    this._conversations = storage.getConversations().sort(
+      (a: Conversation, b: Conversation) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+  }
+
+  /** Update the current endpoint based on settings */
+  private _updateEndpoint() {
+    const endpoint = storage.getSelectedEndpoint();
+    if (endpoint) {
+      this._currentEndpoint = endpoint;
+      this._endpointId = endpoint.id;
+      aiApi.setEndpoint(endpoint);
+    }
   }
 
   /** Load existing conversation */
   private loadConversation() {
     if (this.conversationId) {
       const conversations = storage.getConversations();
-      const conversation = conversations.find(c => c.id === this.conversationId);
+      const conversation = conversations.find((c: Conversation) => c.id === this.conversationId);
       if (conversation) {
-        this._messages = conversation.messages;
-        this._modelId = conversation.modelId;
+        this._messages = conversation.messages.map((m: ChatMessage) => ({...m}));
+        this._endpointId = conversation.endpointId;
+        // Update API endpoint
+        const endpoint = storage.getEndpoint(this._endpointId);
+        if (endpoint) {
+          aiApi.setEndpoint(endpoint);
+        }
+      }
+    } else {
+      // Start fresh
+      this._messages = [];
+      const settings = storage.getSettings();
+      if (settings.selectedEndpointId) {
+        this._endpointId = settings.selectedEndpointId;
+        const endpoint = storage.getEndpoint(this._endpointId);
+        if (endpoint) {
+          aiApi.setEndpoint(endpoint);
+        }
       }
     }
+  }
+
+  /** Start a new conversation */
+  private _newChat() {
+    this.conversationId = '';
+    this._messages = [];
+    this._sidebarOpen = false;
+    // Keep the current endpoint
+    this.requestUpdate();
+  }
+
+  /** Select a conversation from history */
+  private _selectConversation(conversationId: string) {
+    this.conversationId = conversationId;
+    this.loadConversation();
+    this._sidebarOpen = false;
+    this.requestUpdate();
+  }
+
+  /** Delete a conversation */
+  private _deleteConversation(e: Event, conversationId: string) {
+    e.stopPropagation();
+    if (!confirm('Delete this conversation?')) return;
+
+    storage.deleteConversation(conversationId);
+    this._loadConversations();
+
+    // If we deleted the current conversation, start a new one
+    if (this.conversationId === conversationId) {
+      this._newChat();
+    }
+  }
+
+  /** Show import context modal */
+  private _showImportContext() {
+    this._showImportModal = true;
+    this._importConversationId = null;
+    this._importMessageCount = 10;
+  }
+
+  /** Close import modal */
+  private _closeImportModal() {
+    this._showImportModal = false;
+    this._importConversationId = null;
+  }
+
+  /** Import context from another conversation */
+  private _importContext() {
+    if (!this._importConversationId) return;
+
+    const conversation = this._conversations.find((c: Conversation) => c.id === this._importConversationId);
+    if (!conversation) return;
+
+    // Get the last N messages from the selected conversation
+    const messagesToImport = conversation.messages.slice(-this._importMessageCount).map((m: ChatMessage) => ({
+      ...m,
+      id: crypto.randomUUID(), // New IDs for imported messages
+      timestamp: new Date(),
+    }));
+
+    // Add system message to indicate context import
+    const contextMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      content: `📎 *Context imported from "${conversation.title}" (${messagesToImport.length} messages)*`,
+      timestamp: new Date(),
+      role: 'system',
+    };
+
+    this._messages = [...this._messages, contextMessage, ...messagesToImport];
+    this._closeImportModal();
+    this.saveConversation();
+    this.scrollToBottom();
   }
 
   /** Save current conversation */
@@ -195,20 +681,26 @@ export class ChatContainerElement extends LitElement {
 
     const conversation: Conversation = {
       id: this.conversationId || crypto.randomUUID(),
-      messages: this._messages,
-      modelId: this._modelId,
+      messages: [...this._messages],
+      endpointId: this._endpointId,
       title: this._messages[0]?.content.slice(0, 50) || 'New Chat',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
     storage.saveConversation(conversation);
+
+    // Update local state
+    if (!this.conversationId) {
+      this.conversationId = conversation.id;
+    }
+    this._loadConversations();
   }
 
   /** Handle new message submission */
   private async handleMessageSubmit(e: CustomEvent<string>) {
     const content = e.detail;
-    
+
     // Add user message
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -216,7 +708,7 @@ export class ChatContainerElement extends LitElement {
       timestamp: new Date(),
       role: 'user',
     };
-    
+
     this._messages = [...this._messages, userMessage];
     this.scrollToBottom();
     this.saveConversation();
@@ -227,8 +719,8 @@ export class ChatContainerElement extends LitElement {
 
   /** Stream response from the API */
   private async streamResponse() {
-    if (!rosieApi.isAuthenticated()) {
-      this.addErrorMessage('Please set your API token in settings');
+    if (!aiApi.isConfigured()) {
+      this.addErrorMessage('Please configure an endpoint in settings');
       return;
     }
 
@@ -246,18 +738,14 @@ export class ChatContainerElement extends LitElement {
     this._messages = [...this._messages, assistantMessage];
     this.scrollToBottom();
 
-    const model = AVAILABLE_MODELS.find(m => m.id === this._modelId);
-    const temperature = model?.temperature ?? 0.7;
-
     let streamedContent = '';
 
-    await rosieApi.streamChatCompletion(
+    await aiApi.streamChatCompletion(
       this._messages,
-      this._modelId,
-      temperature,
+      0.7,
       (chunk) => {
         streamedContent += chunk;
-        this._messages = this._messages.map(m =>
+        this._messages = this._messages.map((m: ChatMessage) =>
           m.id === streamingId
             ? { ...m, content: streamedContent }
             : m
@@ -265,7 +753,7 @@ export class ChatContainerElement extends LitElement {
         this.scrollToBottom();
       },
       () => {
-        this._messages = this._messages.map(m =>
+        this._messages = this._messages.map((m: ChatMessage) =>
           m.id === streamingId
             ? { ...m, isStreaming: false }
             : m
@@ -274,7 +762,7 @@ export class ChatContainerElement extends LitElement {
         this.saveConversation();
       },
       (error) => {
-        this._messages = this._messages.filter(m => m.id !== streamingId);
+        this._messages = this._messages.filter((m: ChatMessage) => m.id !== streamingId);
         this.addErrorMessage(error.message);
         this._isStreaming = false;
       }
@@ -304,14 +792,20 @@ export class ChatContainerElement extends LitElement {
     }, 0);
   }
 
-  /** Handle model change */
-  private handleModelChange(e: CustomEvent<string>) {
-    this._modelId = e.detail;
+  /** Handle endpoint change */
+  private handleEndpointChange(e: CustomEvent<string>) {
+    this._endpointId = e.detail;
+    const endpoint = storage.getEndpoint(this._endpointId);
+    if (endpoint) {
+      this._currentEndpoint = endpoint;
+      aiApi.setEndpoint(endpoint);
+    }
     this.saveConversation();
   }
 
   /** Handle settings open */
   private openSettings() {
+    logger.debug('Settings button clicked');
     this._showSettings = true;
   }
 
@@ -319,13 +813,36 @@ export class ChatContainerElement extends LitElement {
   private handleSettingsChange(e: CustomEvent<AppSettings>) {
     this._settings = e.detail;
     storage.saveSettings(this._settings);
-    rosieApi.setToken(this._settings.apiToken);
+    this._updateEndpoint();
     this._showSettings = false;
   }
 
   /** Handle settings close */
   private closeSettings() {
     this._showSettings = false;
+  }
+
+  /** Toggle sidebar on mobile */
+  private _toggleSidebar() {
+    this._sidebarOpen = !this._sidebarOpen;
+  }
+
+  /** Format date for display */
+  private _formatDate(date: Date): string {
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (days === 1) {
+      return 'Yesterday';
+    } else if (days < 7) {
+      return d.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
   }
 
   render() {
@@ -339,53 +856,172 @@ export class ChatContainerElement extends LitElement {
       `;
     }
 
-    const isAuthenticated = rosieApi.isAuthenticated();
+    const isConfigured = aiApi.isConfigured();
+    const endpointName = this._currentEndpoint?.name ?? 'No Endpoint';
 
     return html`
-      <div class="header">
-        <div class="header-left">
-          <div class="rosie-logo">🤖</div>
-          <div class="rosie-name">Rosie</div>
-          <model-selector
-            .selectedId=${this._modelId}
-            @model-change=${this.handleModelChange}
-          ></model-selector>
-        </div>
-        <div class="header-right">
-          <div class="api-status ${isAuthenticated ? 'authenticated' : 'unauthenticated'}">
-            <div class="indicator"></div>
-            ${isAuthenticated ? 'Connected' : 'No API Token'}
-          </div>
-          <button class="settings-btn" @click=${this.openSettings} aria-label="Settings">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 17.66l-4.24 4.24M23 12h-6m-6 0H1m20.24 4.24l-4.24-4.24M6.34 6.34L2.1 2.1"></path>
+      <div class="sidebar ${this._sidebarOpen ? 'open' : ''}">
+        <div class="sidebar-header">
+          <button class="new-chat-btn" @click=${this._newChat}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
+            New Chat
           </button>
         </div>
-      </div>
 
-      <div class="messages">
-        ${this._messages.length === 0 ? html`
-          <div class="welcome">
-            <h2>Hi there! 🤖</h2>
-            <p>I'm Rosie, your personal AI assistant.</p>
-            <p style="margin-top: 0.5rem; font-size: 0.9rem;">How can I help you today?</p>
-            ${!isAuthenticated ? html`
-              <p style="margin-top: 1rem; color: var(--rosie-secondary, #f7931e);">
-                ⚡ Please add your API token in settings so I can assist you!
-              </p>
-            ` : ''}
+        <div class="sidebar-title">History</div>
+
+        <div class="conversation-list">
+          ${this._conversations.length === 0 ? html`
+            <div class="no-conversations">
+              No conversations yet
+            </div>
+          ` : this._conversations.map((conv: Conversation) => html`
+            <div
+              class="conversation-item ${conv.id === this.conversationId ? 'active' : ''}"
+              @click=${() => this._selectConversation(conv.id)}
+            >
+              <div class="conversation-title">${conv.title}</div>
+              <div class="conversation-meta">
+                <span>${this._formatDate(conv.updatedAt)}</span>
+                <button
+                  class="conversation-delete"
+                  @click=${(e: Event) => this._deleteConversation(e, conv.id)}
+                  title="Delete conversation"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          `)}
+        </div>
+
+        ${this._conversations.length > 0 && this._messages.length > 0 ? html`
+          <div style="padding: 0 1rem 1rem;">
+            <button class="import-context-btn" @click=${this._showImportContext}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              Import Context
+            </button>
           </div>
-        ` : this._messages.map(msg => html`
-          <chat-message .message=${msg}></chat-message>
-        `)}
+        ` : ''}
       </div>
 
-      <chat-input
-        ?disabled=${this._isStreaming}
-        @message-submit=${this.handleMessageSubmit}
-      ></chat-input>
+      <div class="sidebar-backdrop ${this._sidebarOpen ? 'open' : ''}" @click=${() => this._sidebarOpen = false}></div>
+
+      <div class="main-content">
+        <div class="header">
+          <div class="header-left">
+            <button class="menu-btn" @click=${this._toggleSidebar} aria-label="Toggle menu">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            <div class="rosie-logo">🤖</div>
+            <div class="rosie-name">Rosie</div>
+            <endpoint-selector
+              .selectedId=${this._endpointId}
+              @endpoint-change=${this.handleEndpointChange}
+            ></endpoint-selector>
+          </div>
+          <div class="header-right">
+            <div class="endpoint-display" title="${endpointName}">${endpointName}</div>
+            <div class="api-status ${isConfigured ? 'authenticated' : 'unauthenticated'}">
+              <div class="indicator"></div>
+              ${isConfigured ? 'Connected' : 'No Endpoint'}
+            </div>
+            <button class="settings-btn" @click=${this.openSettings} aria-label="Settings">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 17.66l-4.24 4.24M23 12h-6m-6 0H1m20.24 4.24l-4.24-4.24M6.34 6.34L2.1 2.1"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="messages">
+          ${this._messages.length === 0 ? html`
+            <div class="welcome">
+              <h2>Hello! 🤖</h2>
+              <p>I'm Rosie, your AI assistant.</p>
+              <p style="margin-top: 0.5rem; font-size: 0.9rem;">How can I help you today?</p>
+              ${!isConfigured ? html`
+                <p style="margin-top: 1rem; color: var(--rosie-secondary, #1e3a5f);">
+                  Configure an API endpoint in settings to get started!
+                </p>
+              ` : ''}
+            </div>
+          ` : this._messages.map(msg => html`
+            <chat-message .message=${msg}></chat-message>
+          `)}
+        </div>
+
+        <chat-input
+          ?disabled=${this._isStreaming}
+          @message-submit=${this.handleMessageSubmit}
+        ></chat-input>
+      </div>
+
+      ${this._showImportModal ? html`
+        <div class="import-modal" @click=${(e: Event) => { if (e.target === e.currentTarget) this._closeImportModal(); }}>
+          <div class="import-modal-content">
+            <div class="import-modal-header">
+              <h3>📎 Import Context</h3>
+              <button class="import-modal-close" @click=${this._closeImportModal}>×</button>
+            </div>
+            <div class="import-modal-body">
+              <div class="import-field">
+                <label for="import-conversation">Select conversation</label>
+                <select
+                  id="import-conversation"
+                  .value=${this._importConversationId || ''}
+                  @change=${(e: Event) => this._importConversationId = (e.target as HTMLSelectElement).value}
+                >
+                  <option value="">Choose a conversation...</option>
+                  ${this._conversations
+                    .filter((c: Conversation) => c.id !== this.conversationId)
+                    .map((conv: Conversation) => html`
+                      <option value=${conv.id}>${conv.title} (${conv.messages.length} messages)</option>
+                    `)}
+                </select>
+              </div>
+
+              <div class="import-field">
+                <label for="import-count">Number of recent messages to import</label>
+                <input
+                  id="import-count"
+                  type="range"
+                  min="1"
+                  max="50"
+                  .value=${this._importMessageCount}
+                  @input=${(e: InputEvent) => this._importMessageCount = parseInt((e.target as HTMLInputElement).value)}
+                />
+                <div class="import-range-value">${this._importMessageCount} messages</div>
+              </div>
+
+              <div class="help-text">
+                Importing context will add messages from the selected conversation to your current chat.
+                This helps the AI understand previous discussions without starting over.
+              </div>
+            </div>
+            <div class="import-modal-footer">
+              <button class="import-btn import-btn-secondary" @click=${this._closeImportModal}>Cancel</button>
+              <button
+                class="import-btn import-btn-primary"
+                @click=${this._importContext}
+                ?disabled=${!this._importConversationId}
+              >
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      ` : ''}
     `;
   }
 }

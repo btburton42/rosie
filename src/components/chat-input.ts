@@ -1,6 +1,6 @@
 /**
  * Chat input component using Lit
- * Rosie-themed input with retro-futuristic styling
+ * Retro-futuristic styled input
  * @module components/chat-input
  */
 

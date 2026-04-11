@@ -1,5 +1,5 @@
 /**
- * Type definitions for Rosie - Your Personal AI Assistant
+ * Type definitions for Rosie - AI Chat Interface
  * @module types/chat
  */
 
@@ -19,26 +19,43 @@ export interface ChatMessage {
   isStreaming?: boolean;
 }
 
-/** Configuration for a synthetic.new model */
-export interface ModelConfig {
-  /** Model identifier (e.g., 'nvidia/Kimi-K2.5-NVFP4') */
+/** Model information from /models endpoint */
+export interface ModelInfo {
+  /** Model identifier */
   id: string;
-  /** Display name for the model */
-  name: string;
-  /** Maximum tokens for the model */
-  maxTokens: number;
-  /** Temperature setting (0-2) */
-  temperature: number;
+  /** Human-readable name */
+  name?: string;
+  /** Model description */
+  description?: string;
+  /** Model owner/provider */
+  owned_by?: string;
 }
 
-/** Available models from synthetic.new */
-export const AVAILABLE_MODELS: ModelConfig[] = [
-  { id: 'nvidia/Kimi-K2.5-NVFP4', name: 'Kimi K2.5', maxTokens: 8192, temperature: 0.7 },
-  { id: 'nvidia/Llama-3.1-Nemotron-70B', name: 'Llama 3.1 Nemotron', maxTokens: 4096, temperature: 0.7 },
-  { id: 'Qwen/Qwen2.5-Coder-32B', name: 'Qwen2.5 Coder', maxTokens: 4096, temperature: 0.7 },
-];
+/** Response from /models endpoint */
+export interface ModelsResponse {
+  /** Array of available models */
+  data: ModelInfo[];
+}
 
-/** Request payload for the synthetic.new API */
+/** Configuration for a model endpoint */
+export interface ModelEndpoint {
+  /** Unique identifier for this endpoint configuration */
+  id: string;
+  /** Display name for this endpoint */
+  name: string;
+  /** The API endpoint URL */
+  url: string;
+  /** API key for this endpoint */
+  apiKey: string;
+  /** Model identifier to use with this endpoint */
+  modelId: string;
+  /** Optional: Custom headers for this endpoint */
+  headers?: Record<string, string>;
+  /** Optional: Whether this endpoint follows OpenAI-compatible format */
+  openAICompatible: boolean;
+}
+
+/** Request payload for chat APIs */
 export interface ChatRequest {
   model: string;
   messages: Array<{ role: string; content: string }>;
@@ -47,7 +64,7 @@ export interface ChatRequest {
   max_tokens?: number;
 }
 
-/** Response from the synthetic.new API */
+/** Response from chat APIs */
 export interface ChatResponse {
   choices: Array<{
     message: {
@@ -58,7 +75,7 @@ export interface ChatResponse {
   }>;
 }
 
-/** SSE stream chunk from synthetic.new API */
+/** SSE stream chunk from APIs */
 export interface StreamChunk {
   choices: Array<{
     delta: {
@@ -73,7 +90,7 @@ export interface StreamChunk {
 export interface Conversation {
   id: string;
   messages: ChatMessage[];
-  modelId: string;
+  endpointId: string;
   title: string;
   createdAt: Date;
   updatedAt: Date;
@@ -81,12 +98,12 @@ export interface Conversation {
 
 /** Application settings */
 export interface AppSettings {
-  /** Currently selected model ID */
-  selectedModelId: string;
-  /** API token for synthetic.new */
-  apiToken: string | null;
-  /** Theme preference - Rosie themes */
-  theme: 'rosie' | 'light' | 'space-age';
+  /** Currently selected endpoint ID */
+  selectedEndpointId: string;
+  /** Array of configured endpoints */
+  endpoints: ModelEndpoint[];
+  /** Theme preference */
+  theme: 'rosie' | 'light' | 'workshop';
   /** Font size preference */
   fontSize: 'small' | 'medium' | 'large';
 }

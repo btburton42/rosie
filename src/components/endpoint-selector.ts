@@ -1,19 +1,20 @@
 /**
- * Model selector component using Lit
- * @module components/model-selector
+ * Endpoint selector component using Lit
+ * @module components/endpoint-selector
  */
 
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { AVAILABLE_MODELS, type ModelConfig } from '@app-types/chat.js';
+import type { ModelEndpoint } from '@app-types/chat.js';
+import { storage } from '@services/storage.js';
 
 /**
- * Component for selecting the AI model
- * @element model-selector
- * @fires {CustomEvent<string>} model-change - When selected model changes
+ * Component for selecting the AI endpoint
+ * @element endpoint-selector
+ * @fires {CustomEvent<string>} endpoint-change - When selected endpoint changes
  */
-@customElement('model-selector')
-export class ModelSelectorElement extends LitElement {
+@customElement('endpoint-selector')
+export class EndpointSelectorElement extends LitElement {
   static styles = css`
     :host {
       display: block;
@@ -101,9 +102,12 @@ export class ModelSelectorElement extends LitElement {
       color: var(--text-color, #e2e2e2);
     }
 
-    .option-id {
+    .option-url {
       font-size: 0.75rem;
       color: var(--text-muted, #6b7280);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .backdrop {
@@ -113,21 +117,37 @@ export class ModelSelectorElement extends LitElement {
     }
   `;
 
-  /** Currently selected model ID */
+  /** Currently selected endpoint ID */
   @property({ type: String })
-  selectedId = AVAILABLE_MODELS[0]?.id ?? '';
+  selectedId = '';
 
   @state()
   private _isOpen = false;
 
-  /** Get the selected model config */
-  get selectedModel(): ModelConfig | undefined {
-    return AVAILABLE_MODELS.find(m => m.id === this.selectedId);
+  @state()
+  private _endpoints: ModelEndpoint[] = [];
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._loadEndpoints();
+  }
+
+  private _loadEndpoints() {
+    const settings = storage.getSettings();
+    this._endpoints = settings.endpoints;
+  }
+
+  /** Get the selected endpoint */
+  get selectedEndpoint(): ModelEndpoint | undefined {
+    return this._endpoints.find((e: ModelEndpoint) => e.id === this.selectedId);
   }
 
   /** Toggle dropdown visibility */
   private toggleOpen() {
     this._isOpen = !this._isOpen;
+    if (this._isOpen) {
+      this._loadEndpoints(); // Refresh list when opening
+    }
   }
 
   /** Close dropdown */
@@ -135,12 +155,12 @@ export class ModelSelectorElement extends LitElement {
     this._isOpen = false;
   }
 
-  /** Handle model selection */
-  private selectModel(modelId: string) {
-    if (modelId !== this.selectedId) {
-      this.selectedId = modelId;
-      this.dispatchEvent(new CustomEvent('model-change', {
-        detail: modelId,
+  /** Handle endpoint selection */
+  private selectEndpoint(endpointId: string) {
+    if (endpointId !== this.selectedId) {
+      this.selectedId = endpointId;
+      this.dispatchEvent(new CustomEvent('endpoint-change', {
+        detail: endpointId,
         bubbles: true,
         composed: true,
       }));
@@ -149,49 +169,49 @@ export class ModelSelectorElement extends LitElement {
   }
 
   /** Handle keyboard navigation */
-  private handleKeydown(e: KeyboardEvent, modelId: string) {
+  private handleKeydown(e: KeyboardEvent, endpointId: string) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      this.selectModel(modelId);
+      this.selectEndpoint(endpointId);
     } else if (e.key === 'Escape') {
       this.close();
     }
   }
 
   render() {
-    const selected = this.selectedModel;
+    const selected = this.selectedEndpoint;
 
     return html`
       <div class="selector">
-        <button 
+        <button
           class="trigger ${this._isOpen ? 'open' : ''}"
           @click=${this.toggleOpen}
           aria-haspopup="listbox"
           aria-expanded=${this._isOpen}
         >
-          <span>${selected?.name ?? 'Select Model'}</span>
+          <span>${selected?.name ?? 'Select Endpoint'}</span>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </button>
-        
+
         ${this._isOpen ? html`
           <div class="backdrop" @click=${this.close}></div>
-          <div 
+          <div
             class="dropdown ${this._isOpen ? 'open' : ''}"
             role="listbox"
           >
-            ${AVAILABLE_MODELS.map(model => html`
+            ${this._endpoints.map((endpoint: ModelEndpoint) => html`
               <div
-                class="option ${model.id === this.selectedId ? 'selected' : ''}"
+                class="option ${endpoint.id === this.selectedId ? 'selected' : ''}"
                 role="option"
-                aria-selected=${model.id === this.selectedId}
+                aria-selected=${endpoint.id === this.selectedId}
                 tabindex="0"
-                @click=${() => this.selectModel(model.id)}
-                @keydown=${(e: KeyboardEvent) => this.handleKeydown(e, model.id)}
+                @click=${() => this.selectEndpoint(endpoint.id)}
+                @keydown=${(e: KeyboardEvent) => this.handleKeydown(e, endpoint.id)}
               >
-                <div class="option-name">${model.name}</div>
-                <div class="option-id">${model.id}</div>
+                <div class="option-name">${endpoint.name}</div>
+                <div class="option-url">${endpoint.url} • ${endpoint.modelId}</div>
               </div>
             `)}
           </div>
@@ -203,6 +223,6 @@ export class ModelSelectorElement extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'model-selector': ModelSelectorElement;
+    'endpoint-selector': EndpointSelectorElement;
   }
 }

@@ -1,7 +1,7 @@
 {
-  "name": "rosie",
-  "version": "0.1.0",
-  "description": "Your personal AI assistant - Meet Rosie, your digital household helper",
+  "name": "the-robot",
+  "version": "0.2.0",
+  "description": "Your configurable AI interface for local and remote models",
   "type": "module",
   "scripts": {
     "dev": "vite",

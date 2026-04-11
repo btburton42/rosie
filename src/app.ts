@@ -6,7 +6,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { storage } from '@services/storage.js';
-import { rosieApi } from '@services/rosie-api.js';
+import { aiApi } from '@services/ai-api.js';
 import { createLogger } from './utils/logger.js';
 import '@components/chat-container.js';
 import '@components/settings-panel.js';
@@ -16,14 +16,14 @@ const logger = createLogger('App');
 const AUTH_DISABLED = import.meta.env.VITE_DISABLE_AUTH === 'true';
 
 /**
- * Rosie - Your Personal AI Assistant
- * Root application component with retro-futuristic theming
+ * Rosie - AI Chat Interface
+ * Root application component with utilitarian theming
  * @element rosie-app
  */
 @customElement('rosie-app')
 export class RosieApp extends LitElement {
   @state()
-  private _isAuthenticated = false;
+  private _isAuthenticated!: boolean;
 
   static styles = css`
     :host {
@@ -32,100 +32,100 @@ export class RosieApp extends LitElement {
       height: 100%;
     }
 
-    /* Rosie Theme - Retro-Futuristic Space Age */
+    /* Rosie Theme - Industrial/Utilitarian (Rosie the Riveter inspired) */
     :host([theme="rosie"]) {
-      /* Primary Colors */
-      --bg-color: #2a2a3e;
-      --bg-gradient: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
-      --surface-color: rgba(255, 255, 255, 0.08);
-      --surface-hover: rgba(255, 255, 255, 0.12);
-      
-      /* Rosie Orange Palette */
-      --rosie-primary: #ff6b35;
-      --rosie-secondary: #f7931e;
-      --rosie-accent: #ffd93d;
-      --rosie-dark: #e85d04;
-      
+      /* Industrial Navy & Steel */
+      --bg-color: #1e2a3a;
+      --bg-gradient: linear-gradient(135deg, #1e2a3a 0%, #0f1a2e 100%);
+      --surface-color: #2d3a4a;
+      --surface-hover: #3a4a5a;
+
+      /* Rosie Colors - Red, White, Blue */
+      --rosie-primary: #c41e3a;       /* Classic red */
+      --rosie-secondary: #1e3a5f;     /* Navy blue */
+      --rosie-accent: #ffd700;        /* Industrial gold/brass */
+      --rosie-dark: #0a1628;
+
       /* Text Colors */
-      --text-color: #ffecd1;
-      --text-muted: #a0a0b0;
-      --text-inverse: #2a2a3e;
-      
+      --text-color: #f5f5f5;
+      --text-muted: #8a9ab0;
+      --text-inverse: #1a1a2e;
+
       /* Functional Colors */
-      --accent-color: #ff6b35;
-      --secondary-color: #22d3ee;
-      --border-color: rgba(255, 107, 53, 0.3);
-      --error-color: #ff6b6b;
-      --warning-color: #ffd93d;
-      --success-color: #6bcb77;
-      
-      /* Shadows */
-      --shadow-sm: 0 2px 8px rgba(255, 107, 53, 0.15);
-      --shadow-md: 0 4px 16px rgba(255, 107, 53, 0.25);
-      --shadow-lg: 0 8px 32px rgba(255, 107, 53, 0.35);
-      
-      /* Glow Effects */
-      --glow-primary: 0 0 20px rgba(255, 107, 53, 0.4);
-      --glow-secondary: 0 0 20px rgba(34, 211, 238, 0.4);
+      --accent-color: #c41e3a;
+      --secondary-color: #4a7c9b;
+      --border-color: rgba(255, 255, 255, 0.15);
+      --error-color: #e63946;
+      --warning-color: #ffd700;
+      --success-color: #2a9d8f;
+
+      /* Industrial Shadows */
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
+
+      /* Subtle Glow */
+      --glow-primary: 0 0 15px rgba(196, 30, 58, 0.3);
+      --glow-secondary: 0 0 15px rgba(30, 58, 95, 0.4);
     }
 
     :host([theme="light"]) {
-      --bg-color: #faf8f5;
-      --bg-gradient: linear-gradient(135deg, #faf8f5 0%, #f5f0e8 100%);
-      --surface-color: rgba(255, 107, 53, 0.05);
-      --surface-hover: rgba(255, 107, 53, 0.1);
-      
-      --rosie-primary: #ff6b35;
-      --rosie-secondary: #f7931e;
-      --rosie-accent: #ffd93d;
-      
-      --text-color: #2a2a3e;
-      --text-muted: #6b6b7b;
-      --text-inverse: #faf8f5;
-      
-      --accent-color: #ff6b35;
-      --secondary-color: #0891b2;
-      --border-color: rgba(255, 107, 53, 0.2);
-      --error-color: #dc2626;
-      --warning-color: #f59e0b;
-      --success-color: #16a34a;
-      
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
-      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
-      
-      --glow-primary: 0 0 20px rgba(255, 107, 53, 0.3);
-      --glow-secondary: 0 0 20px rgba(8, 145, 178, 0.3);
+      --bg-color: #f0f4f8;
+      --bg-gradient: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+      --surface-color: rgba(30, 58, 95, 0.05);
+      --surface-hover: rgba(30, 58, 95, 0.1);
+
+      --rosie-primary: #c41e3a;
+      --rosie-secondary: #1e3a5f;
+      --rosie-accent: #b8860b;
+
+      --text-color: #1a202c;
+      --text-muted: #4a5568;
+      --text-inverse: #f7fafc;
+
+      --accent-color: #c41e3a;
+      --secondary-color: #1e3a5f;
+      --border-color: rgba(30, 58, 95, 0.2);
+      --error-color: #c53030;
+      --warning-color: #d69e2e;
+      --success-color: #276749;
+
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+      --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+
+      --glow-primary: 0 0 15px rgba(196, 30, 58, 0.2);
+      --glow-secondary: 0 0 15px rgba(30, 58, 95, 0.2);
     }
 
-    /* Space Age Theme */
-    :host([theme="space-age"]) {
-      --bg-color: #0f0f1a;
-      --bg-gradient: linear-gradient(180deg, #0f0f1a 0%, #1a1a3e 50%, #2a1a3e 100%);
-      --surface-color: rgba(100, 200, 255, 0.08);
-      --surface-hover: rgba(100, 200, 255, 0.15);
-      
-      --rosie-primary: #64c8ff;
-      --rosie-secondary: #a855f7;
-      --rosie-accent: #f0abfc;
-      
-      --text-color: #e0f2fe;
-      --text-muted: #94a3b8;
-      --text-inverse: #0f0f1a;
-      
-      --accent-color: #64c8ff;
-      --secondary-color: #a855f7;
-      --border-color: rgba(100, 200, 255, 0.3);
-      --error-color: #f87171;
-      --warning-color: #fcd34d;
-      --success-color: #34d399;
-      
-      --shadow-sm: 0 2px 8px rgba(100, 200, 255, 0.15);
-      --shadow-md: 0 4px 16px rgba(100, 200, 255, 0.25);
-      --shadow-lg: 0 8px 32px rgba(100, 200, 255, 0.35);
-      
-      --glow-primary: 0 0 30px rgba(100, 200, 255, 0.5);
-      --glow-secondary: 0 0 30px rgba(168, 85, 247, 0.5);
+    /* Workshop Theme - Dark industrial */
+    :host([theme="workshop"]) {
+      --bg-color: #1a1a1a;
+      --bg-gradient: linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+      --surface-color: rgba(255, 255, 255, 0.08);
+      --surface-hover: rgba(255, 255, 255, 0.12);
+
+      --rosie-primary: #ff6b35;       /* Welding torch orange */
+      --rosie-secondary: #4a5568;     /* Steel gray */
+      --rosie-accent: #f6e05e;         /* Warning yellow */
+
+      --text-color: #e2e8f0;
+      --text-muted: #718096;
+      --text-inverse: #1a1a1a;
+
+      --accent-color: #ff6b35;
+      --secondary-color: #4a5568;
+      --border-color: rgba(255, 107, 53, 0.2);
+      --error-color: #fc8181;
+      --warning-color: #f6e05e;
+      --success-color: #68d391;
+
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
+      --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.7);
+
+      --glow-primary: 0 0 20px rgba(255, 107, 53, 0.4);
+      --glow-secondary: 0 0 20px rgba(74, 85, 104, 0.4);
     }
 
     :host([font-size="small"]) {
@@ -153,28 +153,34 @@ export class RosieApp extends LitElement {
 
   constructor() {
     super();
-    
+
+    // Initialize the state property properly
+    this._isAuthenticated = false;
+
     // Check if auth is disabled via env var
     if (AUTH_DISABLED) {
       logger.info('Auth disabled via VITE_DISABLE_AUTH - auto-authenticating');
       this._isAuthenticated = true;
     }
-    
+
     this.initializeApp();
   }
 
-  /** Initialize Rosie app settings */
+  /** Initialize app settings */
   private initializeApp() {
     const settings = storage.getSettings();
-    
+
     // Set theme - default to Rosie theme
     this.setAttribute('theme', settings.theme || 'rosie');
-    
+
     // Set font size
     this.setAttribute('font-size', settings.fontSize);
-    
-    // Initialize API token
-    rosieApi.setToken(settings.apiToken);
+
+    // Initialize API endpoint
+    const endpoint = storage.getSelectedEndpoint();
+    if (endpoint) {
+      aiApi.setEndpoint(endpoint);
+    }
   }
 
   /** Handle successful authentication */

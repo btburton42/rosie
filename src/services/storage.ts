@@ -1,15 +1,34 @@
 /**
- * Local storage service for persisting Rosie's data
+ * Local storage service for persisting data
  * @module services/storage
  */
 
-import type { Conversation, AppSettings } from '@app-types/chat.js';
-import { AVAILABLE_MODELS } from '@app-types/chat.js';
+import type { Conversation, AppSettings, ModelEndpoint } from '@app-types/chat.js';
 
 const STORAGE_KEYS = {
-  conversations: 'rosie_conversations',
-  settings: 'rosie_settings',
+  conversations: 'robot_conversations',
+  settings: 'robot_settings',
 } as const;
+
+/** Default endpoint configurations */
+export const DEFAULT_ENDPOINTS: ModelEndpoint[] = [
+  {
+    id: 'synthetic-default',
+    name: 'synthetic.new',
+    url: 'https://api.synthetic.new/v1',
+    apiKey: '',
+    modelId: 'nvidia/Kimi-K2.5-NVFP4',
+    openAICompatible: true,
+  },
+  {
+    id: 'local-llm',
+    name: 'Local LLM (OpenAI compatible)',
+    url: 'http://localhost:11434/v1',
+    apiKey: 'ollama',
+    modelId: 'llama2',
+    openAICompatible: true,
+  },
+];
 
 /** Service for persisting data to localStorage */
 export class StorageService {
@@ -45,7 +64,7 @@ export class StorageService {
   saveConversation(conversation: Conversation): void {
     const conversations = this.getConversations();
     const existingIndex = conversations.findIndex(c => c.id === conversation.id);
-    
+
     if (existingIndex >= 0) {
       conversations[existingIndex] = conversation;
     } else {
@@ -72,7 +91,8 @@ export class StorageService {
       if (!data) {
         return this.getDefaultSettings();
       }
-      return { ...this.getDefaultSettings(), ...JSON.parse(data) };
+      const parsed = JSON.parse(data);
+      return { ...this.getDefaultSettings(), ...parsed };
     } catch {
       return this.getDefaultSettings();
     }
@@ -92,11 +112,23 @@ export class StorageService {
   /** Get default settings */
   private getDefaultSettings(): AppSettings {
     return {
-      selectedModelId: AVAILABLE_MODELS[0]?.id ?? '',
-      apiToken: null,
+      selectedEndpointId: DEFAULT_ENDPOINTS[0]?.id ?? '',
+      endpoints: [...DEFAULT_ENDPOINTS],
       theme: 'rosie',
       fontSize: 'medium',
     };
+  }
+
+  /** Get a specific endpoint by ID */
+  getEndpoint(endpointId: string): ModelEndpoint | undefined {
+    const settings = this.getSettings();
+    return settings.endpoints.find(e => e.id === endpointId);
+  }
+
+  /** Get the currently selected endpoint */
+  getSelectedEndpoint(): ModelEndpoint | undefined {
+    const settings = this.getSettings();
+    return this.getEndpoint(settings.selectedEndpointId);
   }
 }
 
