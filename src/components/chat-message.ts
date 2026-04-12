@@ -17,70 +17,156 @@ function parseMarkdown(text: string): string {
 
   let html = text;
 
-  // Escape HTML to prevent XSS
+  // Escape HTML to prevent XSS (but preserve newlines for now)
   html = html
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // Code blocks (preserve newlines inside)
+  // Process code blocks first - preserve them completely
+  const codeBlocks: Array<{ placeholder: string; content: string }> = [];
+  let codeBlockIndex = 0;
+
+  // Match code blocks with language specifier
   html = html.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_match, lang, code) => {
+    const placeholder = `__CODEBLOCK_${codeBlockIndex}__`;
     const language = lang || '';
     const cleanCode = code.trim();
-    return `<pre class="code-block ${language}"><code>${cleanCode}</code></pre>`;
+    codeBlocks.push({
+      placeholder,
+      content: `<pre class="code-block ${language}"><code>${cleanCode}</code></pre>`
+    });
+    codeBlockIndex++;
+    return placeholder;
   });
 
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+  // Process inline code
+  const inlineCodes: Array<{ placeholder: string; content: string }> = [];
+  let inlineCodeIndex = 0;
+
+  html = html.replace(/`([^`]+)`/g, (_match, code) => {
+    const placeholder = `__INLINECODE_${inlineCodeIndex}__`;
+    inlineCodes.push({
+      placeholder,
+      content: `<code class="inline-code">${code}</code>`
+    });
+    inlineCodeIndex++;
+    return placeholder;
+  });
 
   // Headers
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-  // Bold
+  // Bold and italic (process bold first to avoid conflicts)
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-
-  // Italic
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
 
   // Strikethrough
   html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
 
-  // Links [text](url)
+  // Links
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 
   // Blockquotes
   html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
 
-  // Unordered lists
-  const listItems: string[] = [];
-  html = html.replace(/^(?:[-*] |\d+\. )(.+)$/gm, (_match, item) => {
-    listItems.push(item);
-    return '{{LIST_ITEM}}';
-  });
-
-  // Process paragraphs and line breaks
-  const paragraphs = html.split('\n\n');
-  html = paragraphs.map(p => {
-    if (p.trim() === '') return '';
-    if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<blockquote')) return p;
-    if (p.includes('{{LIST_ITEM}}')) {
-      // It's a list
-      const items = p.split('{{LIST_ITEM}}').filter((s: string) => s.trim());
-      if (items.length > 0) {
-        return `<ul>${items.map((item: string) => `<li>${item}</li>`).join('')}</ul>`;
-      }
-    }
-    // Regular paragraph with line breaks
-    p = p.replace(/\n/g, '<br>');
-    return `<p>${p}</p>`;
-  }).join('');
-
   // Horizontal rules
   html = html.replace(/^---+$/gm, '<hr>');
+
+  // Process lists
+  const lines = html.split('\n');
+  const result: string[] = [];
+  let inList = false;
+  let listType: 'ul' | 'ol' | null = null;
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    // Skip empty lines
+    if (!trimmedLine) {
+      if (inList) {
+        result.push(`</${listType}>`);
+        inList = false;
+        listType = null;
+      }
+      continue;
+    }
+
+    // Check for list items
+    const unorderedMatch = trimmedLine.match(/^[-*] (.+)$/);
+    const orderedMatch = trimmedLine.match(/^\d+\. (.+)$/);
+
+    if (unorderedMatch) {
+      if (!inList || listType !== 'ul') {
+        if (inList) result.push(`</${listType}>`);
+        inList = true;
+        listType = 'ul';
+        result.push('<ul>');
+      }
+      result.push(`<li>${unorderedMatch[1]}</li>`);
+    } else if (orderedMatch) {
+      if (!inList || listType !== 'ol') {
+        if (inList) result.push(`</${listType}>`);
+        inList = true;
+        listType = 'ol';
+        result.push('<ol>');
+      }
+      result.push(`<li>${orderedMatch[1]}</li>`);
+    } else {
+      // Not a list item
+      if (inList) {
+        result.push(`</${listType}>`);
+        inList = false;
+        listType = null;
+      }
+      result.push(line);
+    }
+  }
+
+  // Close any open list
+  if (inList) {
+    result.push(`</${listType}>`);
+  }
+
+  html = result.join('\n');
+
+  // Process paragraphs - but don't wrap lines that are already HTML tags or placeholders
+  const paragraphs = html.split('\n\n').filter(p => p.trim());
+  html = paragraphs.map(p => {
+    const trimmed = p.trim();
+
+    // Don't wrap if it starts with certain tags or is a placeholder
+    const isTag = trimmed.startsWith('<h') ||
+                  trimmed.startsWith('<pre') ||
+                  trimmed.startsWith('<blockquote') ||
+                  trimmed.startsWith('<ul') ||
+                  trimmed.startsWith('<ol') ||
+                  trimmed.startsWith('<li') ||
+                  trimmed.startsWith('<hr') ||
+                  trimmed.startsWith('__CODEBLOCK_') ||
+                  trimmed.startsWith('__INLINECODE_');
+
+    if (isTag) {
+      return p;
+    }
+
+    // Wrap in paragraph, converting single newlines to <br>
+    return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+
+  // Restore code blocks
+  codeBlocks.forEach(({ placeholder, content }) => {
+    html = html.replace(new RegExp(placeholder, 'g'), content);
+  });
+
+  // Restore inline codes
+  inlineCodes.forEach(({ placeholder, content }) => {
+    html = html.replace(new RegExp(placeholder, 'g'), content);
+  });
 
   return html;
 }
@@ -285,6 +371,7 @@ export class ChatMessageElement extends LitElement {
       font-size: 0.875rem;
       color: #e2e8f0;
       white-space: pre;
+      word-wrap: normal;
     }
 
     .inline-code {

@@ -213,7 +213,7 @@ export class PassphraseAuthElement extends LitElement {
     .strength-bar.strong { background: var(--success-color, #6bcb77); }
   `;
 
-  private static readonly PASSPHRASE_KEY = 'robot_passphrase_hash';
+  private static readonly PASSPHRASE_KEY = 'rosie_passphrase_hash';
 
   @state()
   private _passphrase = '';

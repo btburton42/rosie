@@ -4,7 +4,7 @@
  * @module components/chat-container
  */
 
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { ChatMessage, Conversation, AppSettings, ModelEndpoint } from '@app-types/chat.js';
 import { aiApi } from '@services/ai-api.js';
@@ -513,6 +513,51 @@ export class ChatContainerElement extends LitElement {
       margin-top: 0.5rem;
       line-height: 1.4;
     }
+
+    /* Rename conversation styles */
+    .conversation-rename-input {
+      width: 100%;
+      padding: 0.25rem 0.5rem;
+      border: 1px solid var(--rosie-primary, #c41e3a);
+      border-radius: 0.25rem;
+      background: var(--bg-color, #1e2a3a);
+      color: var(--text-color, #f5f5f5);
+      font-size: 0.875rem;
+      font-family: inherit;
+    }
+
+    .conversation-rename-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(196, 30, 58, 0.3);
+    }
+
+    .conversation-actions {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .conversation-action-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted, #8a9ab0);
+      cursor: pointer;
+      padding: 0.125rem;
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .conversation-item:hover .conversation-action-btn {
+      opacity: 1;
+    }
+
+    .conversation-action-btn:hover {
+      color: var(--rosie-primary, #c41e3a);
+    }
+
+    .conversation-action-btn.delete:hover {
+      color: var(--error-color, #ef4444);
+    }
   `;
 
   @property({ type: String })
@@ -551,11 +596,25 @@ export class ChatContainerElement extends LitElement {
   @state()
   private _importMessageCount = 10;
 
+  @state()
+  private _editingConversationId: string | null = null;
+
+  @state()
+  private _editTitleValue = '';
+
+  willUpdate(changedProperties: PropertyValues<this>) {
+    // When conversationId changes, reload the conversation
+    if (changedProperties.has('conversationId')) {
+      setTimeout(() => this.loadConversation(), 0);
+    }
+  }
+
   connectedCallback() {
     super.connectedCallback();
-    this.loadConversation();
     this._updateEndpoint();
     this._loadConversations();
+    // Delay loading conversation to ensure properties are set
+    setTimeout(() => this.loadConversation(), 0);
   }
 
   /** Load all conversations for the sidebar */
@@ -581,7 +640,8 @@ export class ChatContainerElement extends LitElement {
       const conversations = storage.getConversations();
       const conversation = conversations.find((c: Conversation) => c.id === this.conversationId);
       if (conversation) {
-        this._messages = conversation.messages.map((m: ChatMessage) => ({...m}));
+        // Deep clone the messages to ensure reactivity
+        this._messages = JSON.parse(JSON.stringify(conversation.messages));
         this._endpointId = conversation.endpointId;
         // Update API endpoint
         const endpoint = storage.getEndpoint(this._endpointId);
@@ -615,9 +675,10 @@ export class ChatContainerElement extends LitElement {
   /** Select a conversation from history */
   private _selectConversation(conversationId: string) {
     this.conversationId = conversationId;
-    this.loadConversation();
     this._sidebarOpen = false;
-    this.requestUpdate();
+    this.loadConversation();
+    // Force a re-render
+    this._messages = [...this._messages];
   }
 
   /** Delete a conversation */
@@ -631,6 +692,51 @@ export class ChatContainerElement extends LitElement {
     // If we deleted the current conversation, start a new one
     if (this.conversationId === conversationId) {
       this._newChat();
+    }
+  }
+
+  /** Start renaming a conversation */
+  private _startRename(e: Event, conversation: Conversation) {
+    e.stopPropagation();
+    this._editingConversationId = conversation.id;
+    this._editTitleValue = conversation.title;
+  }
+
+  /** Save the renamed conversation */
+  private _saveRename(e: Event) {
+    e.stopPropagation();
+    if (!this._editingConversationId || !this._editTitleValue.trim()) {
+      this._cancelRename();
+      return;
+    }
+
+    const conversation = this._conversations.find((c: Conversation) => c.id === this._editingConversationId);
+    if (conversation) {
+      conversation.title = this._editTitleValue.trim();
+      conversation.updatedAt = new Date();
+      storage.saveConversation(conversation);
+      this._loadConversations();
+    }
+    this._cancelRename();
+  }
+
+  /** Cancel renaming */
+  private _cancelRename() {
+    this._editingConversationId = null;
+    this._editTitleValue = '';
+  }
+
+  /** Handle rename input */
+  private _handleRenameInput(e: InputEvent) {
+    this._editTitleValue = (e.target as HTMLInputElement).value;
+  }
+
+  /** Handle rename keydown */
+  private _handleRenameKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      this._saveRename(e);
+    } else if (e.key === 'Escape') {
+      this._cancelRename();
     }
   }
 
@@ -883,16 +989,39 @@ export class ChatContainerElement extends LitElement {
               class="conversation-item ${conv.id === this.conversationId ? 'active' : ''}"
               @click=${() => this._selectConversation(conv.id)}
             >
-              <div class="conversation-title">${conv.title}</div>
+              ${this._editingConversationId === conv.id ? html`
+                <input
+                  class="conversation-rename-input"
+                  .value=${this._editTitleValue}
+                  @input=${this._handleRenameInput}
+                  @keydown=${this._handleRenameKeydown}
+                  @blur=${this._saveRename}
+                  @click=${(e: Event) => e.stopPropagation()}
+                  autofocus
+                />
+              ` : html`
+                <div class="conversation-title">${conv.title}</div>
+              `}
               <div class="conversation-meta">
                 <span>${this._formatDate(conv.updatedAt)}</span>
-                <button
-                  class="conversation-delete"
-                  @click=${(e: Event) => this._deleteConversation(e, conv.id)}
-                  title="Delete conversation"
-                >
-                  🗑️
-                </button>
+                <div class="conversation-actions">
+                  ${this._editingConversationId === conv.id ? '' : html`
+                    <button
+                      class="conversation-action-btn"
+                      @click=${(e: Event) => this._startRename(e, conv)}
+                      title="Rename conversation"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      class="conversation-action-btn delete"
+                      @click=${(e: Event) => this._deleteConversation(e, conv.id)}
+                      title="Delete conversation"
+                    >
+                      🗑️
+                    </button>
+                  `}
+                </div>
               </div>
             </div>
           `)}

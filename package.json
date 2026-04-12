@@ -1,5 +1,5 @@
 {
-  "name": "the-robot",
+  "name": "rosie",
   "version": "0.2.0",
   "description": "Your configurable AI interface for local and remote models",
   "type": "module",

@@ -6,8 +6,8 @@
 import type { Conversation, AppSettings, ModelEndpoint } from '@app-types/chat.js';
 
 const STORAGE_KEYS = {
-  conversations: 'robot_conversations',
-  settings: 'robot_settings',
+  conversations: 'rosie_conversations',
+  settings: 'rosie_settings',
 } as const;
 
 /** Default endpoint configurations */
